@@ -8,8 +8,9 @@ import { getCourseById } from "../../services/courses.api";
 
 export default function StudentDashboard() {
     const dispatch = useDispatch();
-    const { enrollments, loading, error } = useSelector((state) => state.enrollment);
+    const { enrollments = [], loading, error } = useSelector((state) => state.enrollment);
     const { currentCourse } = useSelector((state) => state.courses);
+    const safeEnrollments = Array.isArray(enrollments) ? enrollments : [];
 
     const [expandedCourse, setExpandedCourse] = useState(null);
     const [courseStats, setCourseStats] = useState({}); // { courseId: { quizStats, assignmentStats, courseData, lessonMap } }
@@ -169,7 +170,7 @@ export default function StudentDashboard() {
                 </div>
             )}
 
-            {enrollments.length === 0 ? (
+            {safeEnrollments.length === 0 ? (
                 <div className="card bg-base-200">
                     <div className="card-body text-center py-12">
                         <h2 className="card-title justify-center">No courses enrolled yet</h2>
@@ -183,7 +184,7 @@ export default function StudentDashboard() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {enrollments.map((enrollment) => {
+                    {safeEnrollments.map((enrollment) => {
                         const courseId = enrollment.course?._id;
                         const isExpanded = expandedCourse === courseId;
                         const stats = courseStats[courseId];
@@ -258,7 +259,14 @@ export default function StudentDashboard() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-2xl sm:text-3xl font-bold text-primary">
-                                                    {Math.round((enrollment.progress?.completedLessons?.length / (stats?.courseData?.syllabus?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0))) * 100)}%
+                                                    {(() => {
+                                                        const totalLessons = stats?.courseData?.syllabus?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+                                                        const completed = enrollment.progress?.completedLessons?.length || 0;
+                                                        if (totalLessons && totalLessons > 0) {
+                                                            return `${Math.min(100, Math.round((completed / totalLessons) * 100))}%`;
+                                                        }
+                                                        return `${enrollment.progress?.percent || 0}%`;
+                                                    })()}
                                                 </p>
                                             </div>
                                         </div>
